@@ -42,3 +42,8 @@ input/**/*.pdf
 input/**/*.xlsx
 input/**/*.png
 input/**/*.txt
+input/**/*.jpg
+
+# 프리젠테이션용 샘플 데이터 예외
+!input/05/*.pdf
+!input/05/*.jpg
