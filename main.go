@@ -285,13 +285,32 @@ func generateExcel(templatePath, outputPath string, receipts []Receipt, cfg Conf
 	return f.SaveAs(outputPath)
 }
 
-// ─── PDF Merge ───────────────────────────────────────────────────────────────
+// ─── PDF Merge & Image Conversion ────────────────────────────────────────────
 
 func mergePDFs(pdfPaths []string, outputPath string) error {
 	if len(pdfPaths) == 0 {
 		return fmt.Errorf("합칠 PDF 파일이 없습니다")
 	}
 	return pdfapi.MergeCreateFile(pdfPaths, outputPath, false, nil)
+}
+
+// imageToPDF converts a JPG/PNG image file to a single-page PDF.
+func imageToPDF(imagePath, outputPath string) error {
+	return pdfapi.ImportImagesFile([]string{imagePath}, outputPath, nil, nil)
+}
+
+// companionImageBase returns the base name of a companion image for a given PDF path,
+// e.g. "input/04/4_16.pdf" → "4_16_2" (checked for .jpg/.jpeg/.png).
+func findCompanionImage(pdfPath string) (imagePath string, found bool) {
+	dir := filepath.Dir(pdfPath)
+	base := strings.TrimSuffix(filepath.Base(pdfPath), filepath.Ext(pdfPath))
+	for _, ext := range []string{".jpg", ".jpeg", ".png"} {
+		candidate := filepath.Join(dir, base+"_2"+ext)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, true
+		}
+	}
+	return "", false
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -455,17 +474,28 @@ func main() {
 	}
 	fmt.Printf("✅ %s\n", outputPath)
 
-	// 날짜순 정렬된 PDF 경로 목록 (receipts 순서와 동일)
-	var sortedPDFs []string
+	// 병합 대상 목록 구성: 영수증 PDF + companion 이미지(→PDF 변환) 순서 삽입
+	var mergePaths []string
 	for _, rec := range receipts {
-		sortedPDFs = append(sortedPDFs, rec.FilePath)
+		mergePaths = append(mergePaths, rec.FilePath)
+
+		if imgPath, ok := findCompanionImage(rec.FilePath); ok {
+			base := strings.TrimSuffix(filepath.Base(imgPath), filepath.Ext(imgPath))
+			convertedPath := filepath.Join("output", base+".pdf")
+			fmt.Printf("🖼️  이미지 변환: %s → %s\n", filepath.Base(imgPath), filepath.Base(convertedPath))
+			if err := imageToPDF(imgPath, convertedPath); err != nil {
+				fmt.Printf("⚠️  이미지 변환 실패 (%s): %v\n", filepath.Base(imgPath), err)
+			} else {
+				mergePaths = append(mergePaths, convertedPath)
+			}
+		}
 	}
 
 	pdfOutputPath := filepath.Join("output",
 		fmt.Sprintf("%d월 지출경비영수증_%s.pdf", month, cfg.User))
 
-	fmt.Printf("📎 PDF 병합 중...\n")
-	if err := mergePDFs(sortedPDFs, pdfOutputPath); err != nil {
+	fmt.Printf("📎 PDF 병합 중 (%d페이지)...\n", len(mergePaths))
+	if err := mergePDFs(mergePaths, pdfOutputPath); err != nil {
 		fmt.Println("PDF 병합 실패:", err)
 		os.Exit(1)
 	}
