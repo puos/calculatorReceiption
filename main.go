@@ -351,7 +351,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 템플릿: metaData/ 에서 *샘플*.xlsx 탐색, 없으면 input 폴더에서 탐색
 	var templatePath string
+	if mdEntries, err := os.ReadDir("metaData"); err == nil {
+		for _, e := range mdEntries {
+			n := e.Name()
+			if strings.Contains(n, "샘플") && strings.ToLower(filepath.Ext(n)) == ".xlsx" {
+				templatePath = filepath.Join("metaData", n)
+				break
+			}
+		}
+	}
+
 	var pdfPaths []string
 
 	for _, e := range entries {
@@ -360,7 +371,7 @@ func main() {
 		full := filepath.Join(inputDir, name)
 
 		switch {
-		case ext == ".xlsx" && strings.Contains(name, "지출비상세정산서"):
+		case templatePath == "" && ext == ".xlsx" && strings.Contains(name, "지출비상세정산서"):
 			templatePath = full
 		case ext == ".pdf" && !strings.Contains(name, "지출경비영수증"):
 			// *_2.pdf 는 원화환산 증빙용 이미지 PDF → overrides.json 으로 처리, 별도 항목 제외
@@ -464,8 +475,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	outputPath := filepath.Join("output",
-		fmt.Sprintf("지출비상세정산서_%s_%d%02d.xlsx", cfg.User, cfg.Year, month))
+	// 출력 파일명: 템플릿명의 "샘플"을 "YY.MM"으로 교체 (예: *_샘플.xlsx → *_26.04.xlsx)
+	yearSuffix := fmt.Sprintf("%02d.%02d", cfg.Year%100, month)
+	templateBase := filepath.Base(templatePath)
+	outputName := strings.ReplaceAll(templateBase, "샘플", yearSuffix)
+	outputPath := filepath.Join("output", outputName)
 
 	fmt.Printf("\n📝 Excel 생성 중...\n")
 	if err := generateExcel(templatePath, outputPath, receipts, cfg, cfg.Year, month); err != nil {
