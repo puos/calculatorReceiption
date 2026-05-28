@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	pdfapi "github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/ledongthuc/pdf"
 	"github.com/xuri/excelize/v2"
 )
@@ -284,6 +285,15 @@ func generateExcel(templatePath, outputPath string, receipts []Receipt, cfg Conf
 	return f.SaveAs(outputPath)
 }
 
+// ─── PDF Merge ───────────────────────────────────────────────────────────────
+
+func mergePDFs(pdfPaths []string, outputPath string) error {
+	if len(pdfPaths) == 0 {
+		return fmt.Errorf("합칠 PDF 파일이 없습니다")
+	}
+	return pdfapi.MergeCreateFile(pdfPaths, outputPath, false, nil)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 func main() {
@@ -443,8 +453,23 @@ func main() {
 		fmt.Println("Excel 생성 실패:", err)
 		os.Exit(1)
 	}
+	fmt.Printf("✅ %s\n", outputPath)
 
-	fmt.Printf("✅ 완료: %s\n", outputPath)
+	// 날짜순 정렬된 PDF 경로 목록 (receipts 순서와 동일)
+	var sortedPDFs []string
+	for _, rec := range receipts {
+		sortedPDFs = append(sortedPDFs, rec.FilePath)
+	}
+
+	pdfOutputPath := filepath.Join("output",
+		fmt.Sprintf("%d월 지출경비영수증_%s.pdf", month, cfg.User))
+
+	fmt.Printf("📎 PDF 병합 중...\n")
+	if err := mergePDFs(sortedPDFs, pdfOutputPath); err != nil {
+		fmt.Println("PDF 병합 실패:", err)
+		os.Exit(1)
+	}
+	fmt.Printf("✅ %s\n", pdfOutputPath)
 }
 
 func formatKRW(n int) string {
