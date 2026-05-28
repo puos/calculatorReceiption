@@ -5,6 +5,14 @@
     "accountNo": 65,
     "account": "재료비",
     "purpose": "AI 도구",
-    "note": "CLAUDE.AI 22USD × 환율1512.50 + 수수료66원"
+    "note": "CLAUDE.AI 22USD × 환율1512.50 + 수수료66원",
+    "foreignCurrency": {
+      "merchant": "CLAUDE.AI SUBSCRIPTION",
+      "amount": 22.00,
+      "currency": "USD",
+      "exchangeRate": 1512.50,
+      "feeRate": 0.2,
+      "fee": 66
+    }
   }
 ]

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	pdfapi "github.com/pdfcpu/pdfcpu/pkg/api"
+	pdfcputypes "github.com/pdfcpu/pdfcpu/pkg/pdfcpu/types"
 	"github.com/ledongthuc/pdf"
 	"github.com/xuri/excelize/v2"
 )
@@ -294,9 +295,13 @@ func mergePDFs(pdfPaths []string, outputPath string) error {
 	return pdfapi.MergeCreateFile(pdfPaths, outputPath, false, nil)
 }
 
-// imageToPDF converts a JPG/PNG image file to a single-page PDF.
+// imageToPDF converts a JPG/PNG image to a single A4-sized PDF, image centered.
 func imageToPDF(imagePath, outputPath string) error {
-	return pdfapi.ImportImagesFile([]string{imagePath}, outputPath, nil, nil)
+	imp, err := pdfapi.Import("form:A4, pos:c, scale:0.9", pdfcputypes.POINTS)
+	if err != nil {
+		return err
+	}
+	return pdfapi.ImportImagesFile([]string{imagePath}, outputPath, imp, nil)
 }
 
 // companionImageBase returns the base name of a companion image for a given PDF path,
@@ -469,8 +474,9 @@ func main() {
 	}
 	fmt.Printf("  %-16s : %s원\n", "합계", formatKRW(grandTotal))
 
-	// output 폴더 생성
-	if err := os.MkdirAll("output", 0755); err != nil {
+	// output/{월폴더}/ 생성 (input 경로와 동일한 구조)
+	outputDir := filepath.Join("output", folderName)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		fmt.Println("output 폴더 생성 실패:", err)
 		os.Exit(1)
 	}
@@ -479,7 +485,7 @@ func main() {
 	yearSuffix := fmt.Sprintf("%02d.%02d", cfg.Year%100, month)
 	templateBase := filepath.Base(templatePath)
 	outputName := strings.ReplaceAll(templateBase, "샘플", yearSuffix)
-	outputPath := filepath.Join("output", outputName)
+	outputPath := filepath.Join(outputDir, outputName)
 
 	fmt.Printf("\n📝 Excel 생성 중...\n")
 	if err := generateExcel(templatePath, outputPath, receipts, cfg, cfg.Year, month); err != nil {
@@ -495,7 +501,7 @@ func main() {
 
 		if imgPath, ok := findCompanionImage(rec.FilePath); ok {
 			base := strings.TrimSuffix(filepath.Base(imgPath), filepath.Ext(imgPath))
-			convertedPath := filepath.Join("output", base+".pdf")
+			convertedPath := filepath.Join(outputDir, base+".pdf")
 			fmt.Printf("🖼️  이미지 변환: %s → %s\n", filepath.Base(imgPath), filepath.Base(convertedPath))
 			if err := imageToPDF(imgPath, convertedPath); err != nil {
 				fmt.Printf("⚠️  이미지 변환 실패 (%s): %v\n", filepath.Base(imgPath), err)
@@ -505,7 +511,7 @@ func main() {
 		}
 	}
 
-	pdfOutputPath := filepath.Join("output",
+	pdfOutputPath := filepath.Join(outputDir,
 		fmt.Sprintf("%d월 지출경비영수증_%s.pdf", month, cfg.User))
 
 	fmt.Printf("📎 PDF 병합 중 (%d페이지)...\n", len(mergePaths))
