@@ -1,0 +1,25 @@
+{
+  "user": "전계범",
+  "project": "Digital Twin Lab",
+  "year": 2026,
+  "categoryRules": [
+    {
+      "keywords": ["한식", "일식", "중식", "음식점", "식당", "카페", "분식", "패스트푸드"],
+      "accountNo": 10,
+      "account": "회의식대",
+      "purpose": "회의식대(중식비)"
+    },
+    {
+      "keywords": ["CLAUDE", "OPENAI", "SUBSCRIPTION", "SOFTWARE", "재료", "HW", "SW"],
+      "accountNo": 65,
+      "account": "재료비",
+      "purpose": "AI 도구"
+    },
+    {
+      "keywords": ["택시", "버스", "지하철", "KTX", "기차"],
+      "accountNo": 45,
+      "account": "여비교통비",
+      "purpose": "교통비"
+    }
+  ]
+}

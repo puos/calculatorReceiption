@@ -30,3 +30,15 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# 생성된 출력 파일
+output/
+
+# 임시 분석 폴더
+inspect/
+
+# 영수증 원본 파일 (개인정보 포함)
+input/**/*.pdf
+input/**/*.xlsx
+input/**/*.png
+input/**/*.txt
