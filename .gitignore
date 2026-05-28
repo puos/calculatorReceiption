@@ -4,6 +4,9 @@
 # Binaries for programs and plugins
 *.exe
 *.exe~
+
+# 배포용 실행 파일 예외
+!calculator.exe
 *.dll
 *.so
 *.dylib
