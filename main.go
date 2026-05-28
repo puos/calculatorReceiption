@@ -289,7 +289,7 @@ func generateExcel(templatePath, outputPath string, receipts []Receipt, cfg Conf
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("사용법: calculator <입력폴더>")
-		fmt.Println("예시:   calculator input\\04")
+		fmt.Println("예시:   calculator input/04")
 		os.Exit(1)
 	}
 
