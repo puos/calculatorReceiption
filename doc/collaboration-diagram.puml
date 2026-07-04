@@ -1,0 +1,66 @@
+@startuml collaboration-diagram
+' Collaboration(Communication) Diagram - calculatorReceiption
+' 카드 영수증 PDF → 지출비상세정산서(Excel) + 영수증 합본(PDF) 생성 흐름
+
+skinparam defaultFontName "Malgun Gothic"
+skinparam shadowing false
+skinparam rectangle {
+    BackgroundColor #FEFEFE
+    BorderColor #444444
+}
+skinparam database {
+    BackgroundColor #F5F5F5
+    BorderColor #444444
+}
+skinparam arrow {
+    Color #333333
+    FontSize 11
+}
+
+actor "사용자" as User
+
+rectangle ":Main\n(main.go)" as Main
+rectangle ":ConfigLoader\n(loadConfig)" as Config
+rectangle ":OverrideLoader\n(loadOverrides)" as Override
+rectangle ":PDFParser\n(parsePDF / extractText)" as Parser
+rectangle ":Categorizer\n(applyCategory)" as Category
+rectangle ":ExcelGenerator\n(generateExcel)" as Excel
+rectangle ":ImageConverter\n(imageToPDF)" as ImgConv
+rectangle ":PDFMerger\n(mergePDFs)" as Merger
+
+database "config.json" as ConfigFile
+database "input/{월}/\noverrides.json" as OverrideFile
+database "input/{월}/\n*.pdf, *_2.jpg" as InputDir
+database "metaData/\n*샘플*.xlsx (템플릿)" as Template
+database "output/{월}/\n정산서.xlsx, 합본.pdf" as OutputDir
+
+' ── 메시지 흐름 (번호 순서대로) ──
+User -right-> Main : 1: calculator input/{월}
+
+Main -down-> Config : 2: loadConfig()
+Config -down-> ConfigFile : 2.1: read
+
+Main -down-> Override : 3: loadOverrides(inputDir)
+Override -down-> OverrideFile : 3.1: read
+
+Main -up-> InputDir : 4: ReadDir()\n영수증 PDF 목록 수집
+Main -up-> Template : 5: 템플릿 탐색
+
+Main -right-> Parser : 6: parsePDF(path) *[각 PDF]
+Parser -up-> InputDir : 6.1: extractText()\n(ledongthuc/pdf)
+Parser --> Main : 6.2: Receipt{날짜, 금액, 가맹점}
+
+Main -right-> Category : 7: applyCategory(receipt)\n[override 없을 때]
+Category --> Main : 7.1: 계정No / 계정 / 목적
+
+Main -down-> Excel : 8: generateExcel(receipts)
+Excel -up-> Template : 8.1: OpenFile()\n(excelize)
+Excel -down-> OutputDir : 8.2: SaveAs()\n지출비상세정산서_YY.MM.xlsx
+
+Main -down-> ImgConv : 9: imageToPDF(*_2.jpg)\n[동반 이미지 존재 시]
+ImgConv -down-> OutputDir : 9.1: A4 PDF 저장\n(pdfcpu)
+
+Main -down-> Merger : 10: mergePDFs(날짜순 목록)
+Merger -down-> OutputDir : 10.1: MergeCreateFile()\n{월}월 지출경비영수증.pdf
+
+@enduml
