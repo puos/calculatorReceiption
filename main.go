@@ -58,6 +58,7 @@ type CategoryRule struct {
 	AccountNo int      `json:"accountNo"`
 	Account   string   `json:"account"`
 	Purpose   string   `json:"purpose"`
+	MaxAmount int      `json:"maxAmount"` // 0이면 상한 없음
 }
 
 func loadConfig(path string) (Config, error) {
@@ -206,6 +207,7 @@ func applyCategory(rec *Receipt, rules []CategoryRule) {
 				rec.AccountNo = rule.AccountNo
 				rec.Account = rule.Account
 				rec.Purpose = rule.Purpose
+				capAmount(rec, rule.MaxAmount)
 				return
 			}
 		}
@@ -214,6 +216,24 @@ func applyCategory(rec *Receipt, rules []CategoryRule) {
 	rec.AccountNo = 10
 	rec.Account = "회의식대"
 	rec.Purpose = "회의식대(중식비)"
+	capAmount(rec, defaultMealCap)
+}
+
+// defaultMealCap: 규칙에 매칭되지 않아 기본 회의식대로 분류될 때 적용되는 상한
+const defaultMealCap = 10000
+
+// capAmount caps rec.Amount at max (0 = 상한 없음) and records the original amount.
+func capAmount(rec *Receipt, max int) {
+	if max <= 0 || rec.Amount <= max {
+		return
+	}
+	warn := fmt.Sprintf("%s 상한 적용: %s원 → %s원", rec.Account, formatKRW(rec.Amount), formatKRW(max))
+	if rec.Warning != "" {
+		rec.Warning += " / " + warn
+	} else {
+		rec.Warning = warn
+	}
+	rec.Amount = max
 }
 
 // ─── Excel Generation ────────────────────────────────────────────────────────
@@ -465,14 +485,14 @@ func main() {
 	sort.Ints(accountNos)
 	for _, no := range accountNos {
 		at := accountTotals[no]
-		fmt.Printf("  계정%02d %-10s : %s원\n", no, at.name, formatKRW(at.total))
+		fmt.Printf("  계정%02d %-10s : %s원 (%s원)\n", no, at.name, formatKRW(at.total), formatKRWHangul(at.total))
 	}
 
 	grandTotal := 0
 	for _, r := range receipts {
 		grandTotal += r.Amount
 	}
-	fmt.Printf("  %-16s : %s원\n", "합계", formatKRW(grandTotal))
+	fmt.Printf("  %-16s : %s원 (%s원)\n", "합계", formatKRW(grandTotal), formatKRWHangul(grandTotal))
 
 	// output/{월폴더}/ 생성 (input 경로와 동일한 구조)
 	outputDir := filepath.Join("output", folderName)
@@ -520,6 +540,52 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Printf("✅ %s\n", pdfOutputPath)
+}
+
+// formatKRWHangul converts an amount to Korean words, e.g. 144965 → "십사만사천구백육십오"
+func formatKRWHangul(n int) string {
+	if n == 0 {
+		return "영"
+	}
+	groupUnits := []string{"", "만", "억", "조"}
+	var groups []int
+	for n > 0 {
+		groups = append(groups, n%10000)
+		n /= 10000
+	}
+	var sb strings.Builder
+	for i := len(groups) - 1; i >= 0; i-- {
+		g := groups[i]
+		if g == 0 {
+			continue
+		}
+		if g == 1 && i == 1 {
+			sb.WriteString("만") // 일만 → 만 (관용 표기)
+			continue
+		}
+		sb.WriteString(hangulGroup(g))
+		sb.WriteString(groupUnits[i])
+	}
+	return sb.String()
+}
+
+// hangulGroup converts 1~9999 to Korean words, e.g. 4965 → "사천구백육십오"
+func hangulGroup(g int) string {
+	digits := []string{"", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"}
+	units := []string{"천", "백", "십", ""}
+	divs := []int{1000, 100, 10, 1}
+	var sb strings.Builder
+	for i, div := range divs {
+		d := g / div % 10
+		if d == 0 {
+			continue
+		}
+		if !(d == 1 && div > 1) { // 일십/일백/일천 → 십/백/천
+			sb.WriteString(digits[d])
+		}
+		sb.WriteString(units[i])
+	}
+	return sb.String()
 }
 
 func formatKRW(n int) string {
