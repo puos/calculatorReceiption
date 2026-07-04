@@ -1,0 +1,18 @@
+[
+  {
+    "file": "6_16.pdf",
+    "amountKRW": 33965,
+    "accountNo": 65,
+    "account": "재료비",
+    "purpose": "AI 도구",
+    "note": "CLAUDE.AI 22USD × 환율1525.60 + 수수료67원",
+    "foreignCurrency": {
+      "merchant": "CLAUDE.AI SUBSCRIPTION",
+      "amount": 22.00,
+      "currency": "USD",
+      "exchangeRate": 1525.60,
+      "feeRate": 0.2,
+      "fee": 67
+    }
+  }
+]
